@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Right Right Right - UI test (input / HUD / weather)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../css/hud.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; font: 13px system-ui, sans-serif; color: #eee; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: fixed; top: 0; bottom: 0; left: 400px; right: 0; }
+  #panel { position: fixed; top: 0; left: 0; bottom: 0; width: 390px; overflow-y: auto; background: rgba(10,12,20,.88); padding: 10px 12px; box-sizing: border-box; z-index: 5; }
+  #panel h3 { margin: 12px 0 6px; font-size: 14px; color: #ffd24a; border-bottom: 1px solid #334; }
+  .bar { position: relative; height: 14px; background: #222; margin: 3px 0 3px 90px; border: 1px solid #445; }
+  .bar > i { position: absolute; top: 0; bottom: 0; background: #4ac; }
+  .bar > b { position: absolute; left: -90px; top: -1px; font-weight: normal; width: 84px; text-align: right; }
+  .bar.c::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #888; }
+  #events { font: 12px monospace; height: 150px; overflow: hidden; background: #0008; padding: 4px; white-space: pre; }
+  #dev { font-weight: bold; color: #7f7; }
+  button, select { margin: 2px; }
+  .row { margin: 4px 0; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud"></div>
+<div id="panel">
+  <h3>Live input state</h3>
+  <div>Active device: <span id="dev">-</span></div>
+  <div id="bars"></div>
+  <div>Edge events (newest first):</div>
+  <div id="events"></div>
+
+  <h3>HUD fake data</h3>
+  <div class="row">
+    <button id="b-call">showCall</button>
+    <button id="b-split">showSplit</button>
+    <button id="b-msg">message</button>
+    <button id="b-ww">wrongWay (toggle)</button>
+    <button id="b-units">units (kmh/mph)</button>
+  </div>
+
+  <h3>Environment preview</h3>
+  <div class="row">
+    Weather <select id="s-weather"></select>
+    Time <select id="s-time"></select>
+    Quality <select id="s-quality"></select>
+  </div>
+
+  <h3>Input settings (renderSettings)</h3>
+  <div id="settings"></div>
+</div>
+<script type="module" src="./ui-test.js"></script>
+</body>
+</html>

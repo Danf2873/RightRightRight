@@ -1,0 +1,111 @@
+/* HUD — rally TV graphic look. All classes prefixed hud-. */
+.hud-root {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  font-family: "Segoe UI", "Arial Narrow", Arial, sans-serif; color: #fff;
+  text-shadow: 0 1px 3px #000, 0 0 6px rgba(0,0,0,.7);
+  --hud-accent: #ffb400;
+  --hud-panel: rgba(12, 16, 26, .72);
+  user-select: none;
+}
+.hud-root > div { position: absolute; }
+
+/* ---------- top left ---------- */
+.hud-tl { top: 16px; left: 16px; width: 280px; display: flex; flex-direction: column; gap: 10px; }
+.hud-progress { background: var(--hud-panel); padding: 8px 12px 4px; border-left: 4px solid var(--hud-accent); transform: skewX(-8deg); }
+.hud-progress > * { transform: skewX(8deg); }
+.hud-prog-track { position: relative; height: 8px; background: rgba(255,255,255,.22); border-radius: 4px; margin: 6px 0; }
+.hud-prog-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--hud-accent); border-radius: 4px; }
+.hud-prog-splits { position: absolute; inset: 0; }
+.hud-prog-splits i { position: absolute; top: -3px; width: 3px; height: 14px; background: #fff; margin-left: -1px; box-shadow: 0 0 2px #000; }
+.hud-prog-car { position: absolute; top: -5px; left: 0; width: 14px; height: 18px; margin-left: -7px; background: #ff2d2d; border: 2px solid #fff; border-radius: 4px; box-shadow: 0 0 4px #000; box-sizing: border-box; }
+.hud-prog-labels { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 2px; opacity: .8; }
+.hud-damage { display: flex; align-items: center; gap: 8px; background: var(--hud-panel); padding: 4px 12px; width: fit-content; border-left: 4px solid var(--hud-accent); }
+.hud-car-ico { width: 20px; height: 35px; }
+.hud-car-body { fill: #3ddc6a; transition: fill .3s; }
+.hud-dmg-pct { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+
+/* ---------- top centre ---------- */
+.hud-tc { top: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.hud-timer { background: var(--hud-panel); border-bottom: 4px solid var(--hud-accent); padding: 4px 22px; display: flex; align-items: baseline; gap: 12px; transform: skewX(-8deg); }
+.hud-time { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 1px; display: inline-block; transform: skewX(8deg); min-width: 6.4ch; }
+.hud-pen { font-size: 22px; font-weight: 800; color: #ff4040; transform: skewX(8deg); display: inline-block; }
+.hud-pen:empty { display: none; }
+.hud-split { display: none; background: var(--hud-panel); padding: 3px 16px; gap: 14px; align-items: baseline; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; border-left: 4px solid #fff; }
+.hud-split.hud-on { display: flex; }
+.hud-splitlbl { font-size: 13px; letter-spacing: 2px; opacity: .85; }
+.hud-delta { font-size: 26px; font-weight: 800; padding: 0 8px; border-radius: 3px; }
+.hud-fast { color: #55ff7a; }
+.hud-slow { color: #ff5555; }
+
+/* ---------- top right (minimap) ---------- */
+.hud-tr { top: 16px; right: 16px; width: 200px; height: 200px; }
+.hud-map { width: 200px; height: 200px; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+
+/* ---------- bottom right (tach + speed) ---------- */
+.hud-br { bottom: 16px; right: 20px; width: 250px; height: 250px; }
+.hud-tach { position: relative; width: 250px; height: 250px; }
+.hud-tach svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 5px rgba(0,0,0,.7)); }
+.hud-tach::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; background: radial-gradient(circle, rgba(10,14,22,.78) 55%, rgba(10,14,22,.45) 100%); }
+.hud-tach-bg, .hud-tach-red, .hud-tach-fill { fill: none; stroke-linecap: butt; }
+.hud-tach-bg { stroke: rgba(255,255,255,.22); stroke-width: 12; }
+.hud-tach-red { stroke: rgba(255,50,50,.55); stroke-width: 12; }
+.hud-tach-fill { stroke: #ffffff; stroke-width: 8; }
+.hud-redline .hud-tach-fill { stroke: #ff3030; }
+.hud-tick { stroke: #fff; stroke-width: 2; }
+.hud-ticktxt { fill: #fff; font-size: 11px; font-weight: 700; stroke: none; text-shadow: none; }
+.hud-shiftlight { position: absolute; left: 50%; top: 4px; width: 46px; height: 12px; margin-left: -23px; border-radius: 6px; background: #3a1010; border: 1px solid #000; }
+.hud-shiftlight.hud-on { background: #ff2a2a; box-shadow: 0 0 14px 4px rgba(255,40,40,.9); animation: hud-blink .18s steps(2) infinite; }
+.hud-gear { position: absolute; left: 0; right: 0; top: 70px; text-align: center; font-size: 44px; font-weight: 900; color: var(--hud-accent); line-height: 1; }
+.hud-speedbox { position: absolute; left: 0; right: 0; top: 122px; text-align: center; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.hud-speed { font-size: 58px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+.hud-unit { font-size: 13px; letter-spacing: 3px; opacity: .85; margin-top: 2px; }
+
+/* ---------- bottom centre (pace notes) ---------- */
+.hud-bc { bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hud-notes { display: flex; align-items: flex-end; gap: 10px; }
+.hud-note { background: var(--hud-panel); padding: 6px 12px 4px; min-width: 96px; text-align: center; border-bottom: 4px solid rgba(255,255,255,.35); transition: transform .15s; }
+.hud-note-0 { border-bottom-color: var(--hud-accent); transform: scale(1.12); transform-origin: bottom center; margin-right: 6px; }
+.hud-note-1 { opacity: .92; }
+.hud-note-2 { opacity: .75; transform: scale(.88); transform-origin: bottom center; }
+.hud-glyphs { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.hud-gl { position: relative; }
+.hud-glyph { width: 68px; height: 68px; display: block; }
+.hud-glyph-s { width: 46px; height: 46px; }
+.hud-sev { position: absolute; left: 0; bottom: 2px; font-size: 26px; font-weight: 900; line-height: 1; -webkit-text-stroke: 1px #000; paint-order: stroke fill; }
+.hud-gl2 .hud-sev { font-size: 18px; }
+.hud-into { font-size: 26px; font-weight: 900; opacity: .8; }
+.hud-mods { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 2px; max-width: 150px; }
+.hud-mod { font-size: 10px; font-weight: 800; letter-spacing: .5px; padding: 1px 5px; border-radius: 3px; background: #444; color: #fff; text-shadow: none; }
+.hud-mod-warn { background: #d97a00; }
+.hud-mod-bad { background: #d02020; }
+.hud-mod-ok { background: #2a9d4a; }
+.hud-mod-info { background: #2b6cb0; }
+.hud-mod-link { background: #666; }
+.hud-notetext { font-size: 18px; font-weight: 800; padding: 14px 4px; max-width: 160px; letter-spacing: .5px; }
+.hud-notetext-s { font-size: 11px; padding: 2px 4px; }
+.hud-notedist { font-size: 12px; opacity: .85; font-variant-numeric: tabular-nums; margin-top: 1px; }
+.hud-call { display: none; background: rgba(255,180,0,.92); color: #111; text-shadow: none; padding: 6px 16px; align-items: center; gap: 12px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.hud-call.hud-on { display: flex; }
+.hud-call .hud-glyphs { margin: 0; }
+.hud-call .hud-sev { color: #fff; }
+.hud-call .hud-mods { margin: 0; }
+.hud-calltext { font-size: 20px; font-weight: 800; text-transform: uppercase; max-width: 360px; }
+.hud-pop { animation: hud-pop .35s cubic-bezier(.2, 1.6, .4, 1); }
+
+/* ---------- messages ---------- */
+.hud-msg { left: 0; right: 0; top: 30%; text-align: center; font-size: 96px; font-weight: 900; letter-spacing: 4px; display: none; -webkit-text-stroke: 3px #000; paint-order: stroke fill; text-shadow: 0 6px 24px rgba(0,0,0,.6); }
+.hud-msg.hud-on { display: block; }
+.hud-msg-anim { animation: hud-msg .5s cubic-bezier(.2, 1.4, .4, 1); }
+.hud-wrong { left: 0; right: 0; top: 36%; text-align: center; font-size: 72px; font-weight: 900; color: #ff2a2a; letter-spacing: 6px; display: none; -webkit-text-stroke: 3px #000; paint-order: stroke fill; }
+.hud-wrong.hud-on { display: block; animation: hud-blink .5s steps(2) infinite; }
+
+@keyframes hud-blink { 0% { opacity: 1; } 50% { opacity: .15; } 100% { opacity: 1; } }
+@keyframes hud-pop { 0% { transform: scale(.6); } 100% { transform: scale(1); } }
+@keyframes hud-msg { 0% { transform: scale(2.2); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+@media (max-width: 900px) {
+  .hud-br { transform: scale(.7); transform-origin: bottom right; }
+  .hud-tr { transform: scale(.75); transform-origin: top right; }
+  .hud-tl { width: 200px; }
+  .hud-msg { font-size: 56px; }
+}

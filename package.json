@@ -1,0 +1,9 @@
+{
+  "name": "right-right-right",
+  "private": true,
+  "type": "module",
+  "description": "Low-poly browser rally game. No build step: serve this folder statically.",
+  "scripts": {
+    "start": "npx --yes serve -l 8000 ."
+  }
+}

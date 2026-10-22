@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Track viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #111; color: #ddd; font: 13px/1.4 system-ui, sans-serif; }
+  #ui { position: fixed; left: 8px; top: 8px; background: rgba(0,0,0,.65); padding: 8px 10px; border-radius: 6px; max-width: 360px; z-index: 2; }
+  #ui select, #ui button, #ui input { font: inherit; margin: 2px 4px 2px 0; }
+  #info { white-space: pre; font-family: ui-monospace, Consolas, monospace; font-size: 12px; margin-top: 6px; }
+  canvas { display: block; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="ui">
+  <div>
+    <select id="stage"></select>
+    <select id="quality"><option>low</option><option selected>medium</option><option>high</option></select>
+    <label><input type="checkbox" id="centerline" checked> centerline</label>
+  </div>
+  <div>
+    dist <input id="dist" type="range" min="0" max="1000" value="0" style="width:200px">
+    <button id="goto">view here</button> <button id="overview">overview</button>
+  </div>
+  <div id="info">loading...</div>
+</div>
+<script type="module" src="./track-test.js"></script>
+</body>
+</html>

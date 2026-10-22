@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Right Right Right - physics test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb4d6; font-family: Consolas, monospace; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #telemetry { position: fixed; left: 8px; top: 8px; margin: 0; padding: 8px 10px; background: rgba(0,0,0,.55);
+    color: #dfe; font-size: 12px; line-height: 1.35; pointer-events: none; white-space: pre; border-radius: 4px; }
+  #help { position: fixed; right: 8px; top: 8px; padding: 8px 10px; background: rgba(0,0,0,.55); color: #cde;
+    font-size: 12px; line-height: 1.4; border-radius: 4px; }
+  #help select, #help button { font: inherit; margin-top: 4px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<pre id="telemetry">loading...</pre>
+<div id="help">
+  <b>Controls</b><br>
+  W / Up: throttle &nbsp; S / Down: brake / reverse<br>
+  A,D / Left,Right: steer &nbsp; Space: handbrake<br>
+  E / Q: shift up / down (manual) &nbsp; G: toggle gearbox<br>
+  R: reset to start &nbsp; B: reset in place &nbsp; L: lights &nbsp; C: camera<br>
+  <label>Track
+    <select id="trackSel">
+      <option value="demo">demo course (mixed surfaces)</option>
+      <option value="tarmac">flat tarmac</option>
+      <option value="gravel">flat gravel</option>
+      <option value="dirt">flat dirt</option>
+      <option value="wet">flat wet</option>
+      <option value="snow">flat snow</option>
+      <option value="ice">flat ice</option>
+      <option value="mud">flat mud</option>
+      <option value="sand">flat sand</option>
+      <option value="slope">15 deg slope (tarmac)</option>
+      <option value="bumpy">bumpy gravel</option>
+      <option value="ramp">jump ramp</option>
+    </select>
+  </label><br>
+  <button id="dropBtn">drop from 1.5 m</button>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { Vehicle } from '../js/vehicle.js';
+import { SURFACES } from '../js/tires.js';
+import { demoTrack, flatTrack, slopeTrack, rampTrack, bumpyTrack } from './physics-test.js';
+
+const STEP = 1 / 120;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fb4d6);
+scene.fog = new THREE.Fog(0x8fb4d6, 120, 600);
+scene.add(new THREE.HemisphereLight(0xdfeeff, 0x667744, 0.9));
+const sun = new THREE.DirectionalLight(0xfff2dd, 2.0);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120 });
+scene.add(sun, sun.target);
+
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 1500);
+
+const car = new Vehicle(scene, { color: 0xd8262b, quality: 'high' });
+let track = null;
+let worldGroup = null;
+const startPos = new THREE.Vector3(0, 0, 0);
+const startDir = new THREE.Vector3(0, 0, -1);
+
+function buildWorld(kind) {
+  if (worldGroup) {
+    scene.remove(worldGroup);
+    worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  }
+  if (kind === 'demo') track = demoTrack();
+  else if (kind === 'slope') track = slopeTrack(15, 'tarmac');
+  else if (kind === 'bumpy') track = bumpyTrack(0.07, 'gravel');
+  else if (kind === 'ramp') track = rampTrack({ zStart: 120, len: 12, rise: 1.4, surface: 'tarmac' });
+  else track = flatTrack(kind);
+
+  worldGroup = new THREE.Group();
+  // sampled ground patch (2 m cells) so bumps / ramps / zone colours are visible
+  const xr = 40, z0 = 80, z1 = -740, cell = 2;
+  const nx = Math.round((2 * xr) / cell) + 1, nz = Math.round((z0 - z1) / cell) + 1;
+  const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3);
+  const out = { height: 0, nx: 0, ny: 1, nz: 0, surface: 'tarmac', onRoad: true, water: 0 };
+  const cache = {};
+  const c = new THREE.Color();
+  for (let j = 0; j < nz; j++) {
+    for (let i = 0; i < nx; i++) {
+      const x = -xr + i * cell, z = z0 - j * cell;
+      track.groundAt(x, z, cache, out);
+      const k = (j * nx + i) * 3;
+      pos[k] = x; pos[k + 1] = out.height; pos[k + 2] = z;
+      c.setHex((SURFACES[out.surface] || SURFACES.tarmac).color);
+      const checker = ((i >> 2) + (j >> 2)) & 1 ? 0.92 : 1.0;
+      col[k] = c.r * checker; col[k + 1] = c.g * checker; col[k + 2] = c.b * checker;
+    }
+  }
+  const idx = [];
+  for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = j * nx + i, b = a + 1, d = a + nx, e = d + 1;
+    idx.push(a, d, b, b, d, e);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const ground = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  ground.receiveShadow = true;
+  worldGroup.add(ground);
+
+  const far = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2),
+    new THREE.MeshLambertMaterial({ color: 0x5d7a45 }));
+  far.position.y = -0.05;
+  far.receiveShadow = true;
+  worldGroup.add(far);
+
+  // scenery colliders (only the demo course has any)
+  const cols = track.collidersNear(0, -300, 1000);
+  const treeMat = new THREE.MeshLambertMaterial({ color: 0x2f5f2f, flatShading: true });
+  const rockMat = new THREE.MeshLambertMaterial({ color: 0x77757a, flatShading: true });
+  const postMat = new THREE.MeshLambertMaterial({ color: 0xeeeeee, flatShading: true });
+  for (const k of cols) {
+    let m;
+    if (k.kind === 'tree') { m = new THREE.Mesh(new THREE.ConeGeometry(k.r * 3, 9, 6).translate(0, 4.5, 0), treeMat); }
+    else if (k.kind === 'rock') { m = new THREE.Mesh(new THREE.IcosahedronGeometry(k.r, 0).translate(0, k.r * 0.6, 0), rockMat); }
+    else { m = new THREE.Mesh(new THREE.CylinderGeometry(k.r, k.r, 1.2, 6).translate(0, 0.6, 0), postMat); }
+    m.position.set(k.x, 0, k.z);
+    m.castShadow = true;
+    worldGroup.add(m);
+  }
+  scene.add(worldGroup);
+  resetCar();
+}
+
+function resetCar() {
+  car.reset(startPos, startDir);
+  car.syncVisuals();
+  camHeading = 0;
+}
+function resetInPlace() {
+  _v.copy(car.position); _v.y -= 0.4;
+  _f.set(0, 0, -1).applyQuaternion(car.quaternion); _f.y = 0;
+  if (_f.lengthSq() < 1e-4) _f.set(0, 0, -1);
+  car.reset(_v, _f.normalize(), true);
+}
+function dropCar() {
+  resetCar();
+  car.update(STEP, input, track);
+  car.position.y += 1.5;
+}
+
+// ---------------- input
+const keys = new Set();
+const edges = { shiftUp: false, shiftDown: false };
+let camMode = 0;
+addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  keys.add(e.code);
+  if (e.code === 'KeyE') edges.shiftUp = true;
+  if (e.code === 'KeyQ') edges.shiftDown = true;
+  if (e.code === 'KeyG') car.setManualGearbox(!car.manual);
+  if (e.code === 'KeyR') resetCar();
+  if (e.code === 'KeyB') resetInPlace();
+  if (e.code === 'KeyL') car.setLights(!car._lights.on);
+  if (e.code === 'KeyC') camMode = (camMode + 1) % 3;
+  if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+const input = { steer: 0, throttle: 0, brake: 0, handbrake: 0, shiftUp: false, shiftDown: false, reset: false, device: 'keyboard' };
+let steerTarget = 0;
+function pollInput(dt) {
+  const L = keys.has('KeyA') || keys.has('ArrowLeft'), R = keys.has('KeyD') || keys.has('ArrowRight');
+  steerTarget = (R ? 1 : 0) - (L ? 1 : 0);
+  // keyboard smoothing similar to what input.js is expected to do
+  const rate = steerTarget === 0 ? 6 : (Math.sign(steerTarget) === Math.sign(input.steer) || input.steer === 0 ? 3.5 : 7);
+  const d = steerTarget - input.steer;
+  input.steer += Math.sign(d) * Math.min(Math.abs(d), rate * dt);
+  const thT = keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0;
+  const brT = keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0;
+  input.throttle += (thT - input.throttle) * Math.min(1, dt * 10);
+  input.brake += (brT - input.brake) * Math.min(1, dt * 12);
+  input.handbrake = keys.has('Space') ? 1 : 0;
+}
+
+// ---------------- camera
+const _v = new THREE.Vector3(), _f = new THREE.Vector3(), _c = new THREE.Vector3(), _l = new THREE.Vector3();
+let camHeading = 0;
+function updateCamera(dt) {
+  const sp = car.velocity.length();
+  _f.set(0, 0, -1).applyQuaternion(car.quaternion);
+  let target = Math.atan2(-_f.x, -_f.z);
+  if (sp > 4) {
+    const vh = Math.atan2(-car.velocity.x, -car.velocity.z);
+    let d = vh - target; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+    if (car.speed > 0) target += d * 0.35;
+  }
+  let dh = target - camHeading; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI;
+  camHeading += dh * Math.min(1, dt * 4);
+  if (camMode === 0 || camMode === 1) {
+    const dist = camMode === 0 ? 7.5 : 4.5, height = camMode === 0 ? 2.6 : 1.6;
+    _c.set(Math.sin(camHeading) * dist, height, Math.cos(camHeading) * dist).add(car.position);
+    camera.position.lerp(_c, Math.min(1, dt * 8));
+    _l.copy(car.position); _l.y += 0.6;
+    camera.lookAt(_l);
+  } else {
+    _c.set(0, 0.55, -0.3).applyQuaternion(car.quaternion).add(car.position);
+    camera.position.copy(_c);
+    camera.quaternion.copy(car.quaternion);
+  }
+}
+
+// ---------------- telemetry
+const tel = document.getElementById('telemetry');
+let telTimer = 0;
+function f(n, w, d = 2) { return n.toFixed(d).padStart(w); }
+function updateTelemetry() {
+  const w = car.wheels;
+  const names = ['FL', 'FR', 'RL', 'RR'];
+  let s = `speed ${f(car.speed * 3.6, 6, 1)} km/h   rpm ${f(car.rpm, 5, 0)}/${car.maxRpm}   gear ${car.gear < 0 ? 'R' : car.gear === 0 ? 'N' : car.gear} (${car.manual ? 'manual' : 'auto'})\n`;
+  s += `throttle ${f(car.throttle, 4)}  damage ${f(car.damage, 4)}  steer ${f(car.steerAngle * 57.3, 5, 1)} deg\n`;
+  s += `latG ${f(car.lateralG, 5)}  longG ${f(car.longG, 5)}  airborne ${car.airborne}  upsideDown ${car.upsideDown}\n`;
+  s += `pos ${f(car.position.x, 7, 1)} ${f(car.position.y, 6, 2)} ${f(car.position.z, 7, 1)}\n`;
+  s += `      slipR  slipA(deg)  load(N)  comp  omega  surface\n`;
+  for (let i = 0; i < 4; i++) {
+    const k = w[i];
+    s += `${names[i]}  ${f(k.slipRatio, 6)} ${f(k.slipAngle * 57.3, 9, 1)} ${f(k.load, 9, 0)} ${f(k.compression, 5)} ${f(k.omega, 6, 1)}  ${k.contact ? k.surface : '(air)'}${k.water > 0 ? ' water' : ''}\n`;
+  }
+  tel.textContent = s;
+}
+
+// ---------------- UI
+const sel = document.getElementById('trackSel');
+sel.addEventListener('change', () => { buildWorld(sel.value); sel.blur(); });
+document.getElementById('dropBtn').addEventListener('click', (e) => { dropCar(); e.target.blur(); });
+car.onImpact = (s, kind) => console.log('impact', s.toFixed(1), kind);
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+buildWorld('demo');
+
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  acc += dt;
+  pollInput(dt);
+  let n = 0;
+  while (acc >= STEP && n < 12) {
+    input.shiftUp = edges.shiftUp; input.shiftDown = edges.shiftDown;
+    edges.shiftUp = edges.shiftDown = false;
+    car.update(STEP, input, track);
+    acc -= STEP; n++;
+  }
+  if (n === 12) acc = 0;
+  car.syncVisuals();
+  updateCamera(dt);
+  sun.position.set(car.position.x + 40, car.position.y + 60, car.position.z + 25);
+  sun.target.position.copy(car.position);
+  renderer.render(scene, camera);
+  telTimer += dt;
+  if (telTimer > 0.08) { telTimer = 0; updateTelemetry(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__physics = { car, get track() { return track; }, THREE };
+</script>
+</body>
+</html>
