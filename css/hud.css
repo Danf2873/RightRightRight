@@ -105,3 +105,44 @@
   .hud-tl { width: 200px; }
   .hud-msg { font-size: 56px; }
 }
+
+/* ---------- touch controls (phones / tablets) ---------- */
+.tc-root { position: absolute; inset: 0; pointer-events: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.tc-btn {
+  pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 14, 22, .42); border: 2px solid rgba(255,255,255,.45); border-radius: 18px;
+  color: #fff; font-weight: 800; font-size: 18px; letter-spacing: 1px;
+}
+.tc-btn.tc-on { background: rgba(255, 204, 0, .55); border-color: #ffcc00; }
+.tc-steer {
+  position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex; gap: 10px; pointer-events: auto; touch-action: none;
+}
+.tc-steer .tc-btn { width: 96px; height: 110px; font-size: 34px; }
+.tc-pedals {
+  position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex; align-items: flex-end; gap: 10px;
+}
+.tc-gas { width: 88px; height: 150px; }
+.tc-brake { width: 88px; height: 110px; }
+.tc-hb { width: 64px; height: 64px; font-size: 15px; }
+.tc-shift { display: none; flex-direction: column; gap: 10px; }
+.tc-manual .tc-shift { display: flex; }
+.tc-small { width: 56px; height: 44px; font-size: 13px; border-radius: 12px; }
+.tc-shift .tc-small { font-size: 26px; height: 56px; }
+.tc-menu {
+  position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 164px);
+  display: flex; gap: 8px;
+}
+/* make room: tach moves up under the progress bar, notes sit between the thumbs */
+.touch-ui .hud-br { bottom: auto; right: auto; top: 70px; left: 10px; transform: scale(.5); transform-origin: top left; }
+.touch-ui .hud-bc { bottom: 14px; transform: translateX(-50%) scale(.7); transform-origin: bottom center; }
+.touch-ui .hud-note-2 { display: none; }
+@media (max-height: 500px) {
+  .tc-steer .tc-btn { width: 84px; height: 92px; }
+  .tc-gas { height: 120px; } .tc-brake { height: 90px; }
+  .tc-menu { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 132px); gap: 6px; } .tc-small { height: 38px; }
+  .touch-ui .hud-tr { transform: scale(.55); }
+  .touch-ui .hud-br { top: 66px; transform: scale(.42); }
+  .touch-ui .hud-bc { transform: translateX(-50%) scale(.55); }
+}

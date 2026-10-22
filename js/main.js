@@ -4,6 +4,7 @@ import { buildTrack } from './track.js';
 import { Vehicle } from './vehicle.js';
 import { Input } from './input.js';
 import { HUD } from './hud.js';
+import { TouchControls, isTouchDevice } from './touch.js';
 import { createEnvironment } from './weather.js';
 import { generateNotes, Codriver } from './pacenotes.js';
 import { AudioEngine } from './audio.js';
@@ -63,6 +64,8 @@ resize();
 const input = new Input(settings.input);
 const hud = new HUD(hudRoot);
 hud.hide();
+const touch = new TouchControls(hudRoot, input);
+const touchWanted = () => settings.touch === 'on' || (settings.touch !== 'off' && isTouchDevice());
 const audio = new AudioEngine(settings.audio);
 const vehicle = new Vehicle(scene, { color: 0xd8262b, quality: settings.graphics.quality });
 if (!vehicle.mesh.parent) scene.add(vehicle.mesh);
@@ -311,6 +314,7 @@ async function loadStage(index, { recce = false } = {}) {
   hud.setTrack(game.track);
   vehicle.setLights(!!game.env.isNight || ['fog', 'storm', 'ash'].includes(def.weather));
   vehicle.setManualGearbox(settings.gearbox === 'manual');
+  touch.setManual(settings.gearbox === 'manual');
   vehicle.mesh.visible = true;
   game.best = store.loadBest()[def.id] || null;
   game.ghostFrames = recce ? null : store.loadGhost(def.id);
@@ -539,8 +543,9 @@ function frame(now) {
   fpsAcc += dt; fpsFrames++;
   if (fpsAcc > 0.5) { fps = fpsFrames / fpsAcc; fpsAcc = 0; fpsFrames = 0; }
 
-  const inp = input.update(dt, game.track ? vehicle.speed : 0);
   const inStage = game.state === 'countdown' || game.state === 'running' || game.state === 'finished';
+  touch.setVisible(inStage && !game.paused && touchWanted());
+  const inp = input.update(dt, game.track ? vehicle.speed : 0);
 
   if (inStage && !game.paused) {
     if (inp.pause) pauseGame();
@@ -825,7 +830,8 @@ function showSettings(back, tab = 'controls') {
     } else {
       body.append(
         field('Graphics quality', select(settings.graphics, 'quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], applyPixelRatio), el('span', { class: 'val' }, 'scenery/shadows apply on next stage')),
-        field('Gearbox', select(settings, 'gearbox', [['auto', 'Automatic'], ['manual', 'Manual (E / Q, bumpers, paddles)']], (v) => vehicle.setManualGearbox(v === 'manual'))),
+        field('Gearbox', select(settings, 'gearbox', [['auto', 'Automatic'], ['manual', 'Manual (E / Q, bumpers, paddles)']], (v) => { vehicle.setManualGearbox(v === 'manual'); touch.setManual(v === 'manual'); })),
+        field('Touch controls', select(settings, 'touch', [['auto', 'Auto (touch screens)'], ['on', 'Always on'], ['off', 'Off']])),
         field('Speed units', select(settings, 'units', [['kmh', 'km/h'], ['mph', 'mph']])),
         field('Camera', select(settings, 'camera', CAMERA_NAMES.map((n, i) => [i, n]), (v) => { settings.camera = parseInt(v, 10); save(); })),
         el('div', { class: 'row', style: 'margin-top:12px' },
