@@ -238,9 +238,6 @@ export class Cockpit {
     c.fillText(units === 'mph' ? 'MPH' : 'KM/H', 238, 58);
     c.textAlign = 'left';
     c.fillText(`${Math.round(v.rpm || 0)} RPM`, 16, 58);
-    const dmg = v.damage || 0;
-    c.fillStyle = dmg < 0.3 ? '#35c26b' : dmg < 0.65 ? '#ffcc00' : '#ff3b2e';
-    c.fillText(`DMG ${Math.round(dmg * 100)}%`, 16, 98);
     this.tex.needsUpdate = true;
   }
 }

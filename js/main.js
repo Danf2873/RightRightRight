@@ -354,7 +354,7 @@ function resetToRoad(penalty) {
   if (!t) return;
   const d = Math.max(t.startDist, Math.min(t.finishDist - 5, game.dist - 5));
   t.sampleAt(d, samp);
-  vehicle.reset(tmpV.copy(samp.pos).addScaledVector(UP, 0.3), samp.dir, true);
+  vehicle.reset(tmpV.copy(samp.pos).addScaledVector(UP, 0.3), samp.dir);
   snapCamera();
   game.troubleTime = 0;
   game.wrongWayTime = 0;
@@ -576,7 +576,6 @@ function frame(now) {
         gear: vehicle.gear,
         timeMs: game.timeMs,
         penaltyMs: game.penaltyMs,
-        damage: vehicle.damage,
         dist: game.maxDist,
         startDist: game.track.startDist,
         finishDist: game.track.finishDist,
@@ -601,7 +600,7 @@ function frame(now) {
     const w = vehicle.wheels || [];
     debugEl.textContent =
       `fps ${fps.toFixed(0)}  calls ${renderer.info.render.calls}  tris ${(renderer.info.render.triangles / 1000).toFixed(0)}k\n` +
-      `speed ${(vehicle.speed * 3.6).toFixed(1)} km/h  rpm ${vehicle.rpm?.toFixed(0)}  gear ${vehicle.gear}  dmg ${(vehicle.damage * 100).toFixed(0)}%\n` +
+      `speed ${(vehicle.speed * 3.6).toFixed(1)} km/h  rpm ${vehicle.rpm?.toFixed(0)}  gear ${vehicle.gear}\n` +
       `dist ${game.dist.toFixed(0)} / ${game.track?.finishDist.toFixed(0)}  lat ${game.lateral.toFixed(1)}  device ${inp.device}\n` +
       w.map((x, i) => `${['FL', 'FR', 'RL', 'RR'][i]} ${x.contact ? x.surface : 'air'} sr ${x.slipRatio?.toFixed(2)} sa ${x.slipAngle?.toFixed(2)} load ${(x.load / 1000).toFixed(1)}k`).join('\n');
   }
@@ -928,7 +927,6 @@ function showResults() {
       el('table', { class: 'results-table' },
         ...rows,
         el('tr', {}, el('td', {}, 'Penalties'), el('td', {}, `${(game.penaltyMs / 1000).toFixed(1)}s`), el('td', {}, `${game.resets} reset${game.resets === 1 ? '' : 's'}`)),
-        el('tr', {}, el('td', {}, 'Damage'), el('td', {}, `${Math.round(vehicle.damage * 100)}%`), el('td', {}, '')),
         el('tr', {}, el('td', {}, 'Previous best'), el('td', {}, fmtTime(r.prevBest)),
           el('td', { class: delta == null ? '' : delta < 0 ? 'faster' : 'slower' }, delta == null ? '' : `${delta < 0 ? '−' : '+'}${(Math.abs(delta) / 1000).toFixed(2)}`)),
       ),

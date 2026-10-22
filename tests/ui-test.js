@@ -79,18 +79,17 @@ for (let i = 0; i < 40; i++) {
   notes.push(Object.assign({}, base, { dist: track.startDist + 60 + i * 55, distanceToNext: 100 }));
 }
 
-const sim = { dist: track.startDist, t: 0, speed: 30, gear: 2, rpm: 3000, damage: 0, wrong: false, mph: false, called: -1 };
+const sim = { dist: track.startDist, t: 0, speed: 30, gear: 2, rpm: 3000, wrong: false, mph: false, called: -1 };
 function stepSim(dt) {
   sim.t += dt;
   const kmh = 80 + 70 * Math.sin(sim.t * 0.5);
   sim.speed = kmh / 3.6;
   sim.dist += sim.speed * dt;
-  if (sim.dist > track.finishDist) { sim.dist = track.startDist; sim.t = 0; sim.damage = 0; }
+  if (sim.dist > track.finishDist) { sim.dist = track.startDist; sim.t = 0; }
   sim.gear = Math.max(1, Math.min(6, 1 + Math.floor(kmh / 30)));
   const gearTop = sim.gear * 30;
   sim.rpm = 2000 + 6300 * ((kmh - (sim.gear - 1) * 30) / 30);
   sim.rpm = Math.max(1000, Math.min(8500, sim.rpm));
-  sim.damage = Math.min(1, sim.damage + dt * 0.01);
   void gearTop;
 }
 function sampleAt(dist) {
@@ -105,7 +104,7 @@ function hudState() {
   for (const n of notes) if (n.dist > sim.dist - 10 && upcoming.length < 3) upcoming.push(n);
   return {
     speedMs: sim.speed, rpm: sim.rpm, maxRpm: 8500, gear: sim.gear, timeMs: sim.t * 1000, penaltyMs: sim.t > 10 ? 5000 : 0,
-    damage: sim.damage, dist: sim.dist, startDist: track.startDist, finishDist: track.finishDist,
+    dist: sim.dist, startDist: track.startDist, finishDist: track.finishDist,
     carX: s.x, carZ: s.z, carHeading: Math.atan2(-s.dx, -s.dz), ghostX: g.x, ghostZ: g.z,
     upcoming, wrongWay: sim.wrong, units: sim.mph ? 'mph' : 'kmh',
   };

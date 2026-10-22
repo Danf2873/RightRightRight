@@ -154,7 +154,6 @@ export class Vehicle {
   speed                        // signed forward speed m/s
   rpm, maxRpm, gear            // gear: -1 reverse, 0 neutral, 1..6
   throttle                     // applied 0..1 (after traction/rev limiter)
-  damage                       // 0..1 overall
   airborne                     // true if no wheel touching
   upsideDown                   // true if roof is pointing down for >1s
   wheels                       // [FL, FR, RL, RR] each { contact, surface, slipRatio, slipAngle,
@@ -205,7 +204,7 @@ export class HUD {
   show(); hide()
   setTrack(track)              // prepares minimap from track.samples
   update(state)                // per frame, state = {
-                               //   speedMs, rpm, maxRpm, gear, timeMs, penaltyMs, damage,
+                               //   speedMs, rpm, maxRpm, gear, timeMs, penaltyMs,
                                //   dist, startDist, finishDist, carX, carZ, carHeading,
                                //   ghostX?, ghostZ?, upcoming: Note[], wrongWay, units:'kmh'|'mph'}
   showCall(note)               // flash the codriver call text/icons

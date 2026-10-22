@@ -233,7 +233,7 @@ function updateTelemetry() {
   const w = car.wheels;
   const names = ['FL', 'FR', 'RL', 'RR'];
   let s = `speed ${f(car.speed * 3.6, 6, 1)} km/h   rpm ${f(car.rpm, 5, 0)}/${car.maxRpm}   gear ${car.gear < 0 ? 'R' : car.gear === 0 ? 'N' : car.gear} (${car.manual ? 'manual' : 'auto'})\n`;
-  s += `throttle ${f(car.throttle, 4)}  damage ${f(car.damage, 4)}  steer ${f(car.steerAngle * 57.3, 5, 1)} deg\n`;
+  s += `throttle ${f(car.throttle, 4)}  steer ${f(car.steerAngle * 57.3, 5, 1)} deg\n`;
   s += `latG ${f(car.lateralG, 5)}  longG ${f(car.longG, 5)}  airborne ${car.airborne}  upsideDown ${car.upsideDown}\n`;
   s += `pos ${f(car.position.x, 7, 1)} ${f(car.position.y, 6, 2)} ${f(car.position.z, 7, 1)}\n`;
   s += `      slipR  slipA(deg)  load(N)  comp  omega  surface\n`;

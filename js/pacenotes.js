@@ -4,7 +4,8 @@
 const ON_K = 1 / 450;   // curvature that starts a corner
 const OFF_K = 1 / 700;  // hysteresis: corner continues while above this
 const MERGE_GAP = 8;    // merge same-direction corners separated by less than this (m)
-const MIN_ANGLE = 0.06; // rad; ignore tiny kinks
+const MIN_ANGLE = 0.14; // rad (~8 deg); ignore tiny kinks and road noise
+const TRIM_FRAC = 0.12; // trim corner ends where curvature is below this fraction of the corner's peak
 
 const DIST_STEPS = [30, 50, 80, 100, 150, 200, 250, 300];
 const INTO_GAP = 25;
@@ -75,6 +76,15 @@ function detectCorners(samples, step) {
       i = e + 1;
     } else i++;
   }
+  // road noise keeps |k| above OFF_K for long stretches; without trimming, a corner's start
+  // creeps tens of metres early and its end late, so calls and distances come out wrong
+  for (const r of regions) {
+    let peak = 0;
+    for (let j = r.s; j <= r.e; j++) peak = Math.max(peak, Math.abs(k(j)));
+    const lim = Math.max(OFF_K, TRIM_FRAC * peak);
+    while (r.s < r.e && Math.abs(k(r.s)) < lim) r.s++;
+    while (r.e > r.s && Math.abs(k(r.e)) < lim) r.e--;
+  }
   const merged = [];
   for (const r of regions) {
     const p = merged[merged.length - 1];
@@ -84,19 +94,22 @@ function detectCorners(samples, step) {
   const out = [];
   for (const r of merged) {
     let maxK = 0, apex = r.s, angle = 0;
-    const mid = (r.s + r.e + 1) >> 1;
+    // entry vs exit radius from the first and last thirds (halves blur a tightening corner)
+    const t1 = r.s + Math.floor((r.e - r.s + 1) / 3), t2 = r.e - Math.floor((r.e - r.s + 1) / 3);
     let maxK1 = 0, maxK2 = 0;
     for (let j = r.s; j <= r.e; j++) {
       const a = Math.abs(k(j));
       angle += a * step;
       if (a > maxK) { maxK = a; apex = j; }
-      if (j < mid) { if (a > maxK1) maxK1 = a; } else if (a > maxK2) maxK2 = a;
+      if (j < t1 && a > maxK1) maxK1 = a;
+      if (j > t2 && a > maxK2) maxK2 = a;
     }
     if (angle < MIN_ANGLE || maxK <= 0) continue;
-    if (!maxK1) maxK1 = maxK2;
+    if (!maxK1) maxK1 = maxK;
+    if (!maxK2) maxK2 = maxK;
     out.push({
       s: r.s, e: r.e, sign: r.sign, apex, angle,
-      minR: 1 / maxK, r1: 1 / maxK1, r2: 1 / (maxK2 || maxK1),
+      minR: 1 / maxK, r1: 1 / maxK1, r2: 1 / maxK2,
       len: (r.e - r.s + 1) * step,
     });
   }
@@ -113,10 +126,11 @@ function classify(c) {
   let adj = 0;
   if (deg < 15) adj = 2; else if (deg < 35) adj = 1;
   const s1 = sevFromR(c.r1), s2 = sevFromR(c.r2);
-  if (c.len >= 30 && s2 <= s1 - 1 && c.r2 < 0.75 * c.r1) {
+  if (c.len >= 30 && s2 <= s1 - 1 && c.r2 < 0.65 * c.r1) {
+    // call the entry, warn that it tightens (calling the exit number brakes you far too early)
     out.tightens = true;
-    sev = Math.min(s1, s2 + 2);
-  } else if (c.len >= 30 && s2 >= s1 + 1 && c.r2 > 1.33 * c.r1) {
+    sev = Math.max(s2 + 1, Math.min(s1, s2 + 2));
+  } else if (c.len >= 30 && s1 <= 4 && s2 >= s1 + 1 && c.r2 > 1.55 * c.r1) {
     out.opens = true;
   }
   out.severity = Math.max(1, Math.min(6, sev + adj));
