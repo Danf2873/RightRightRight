@@ -4,6 +4,10 @@ import { SURFACE_COLORS, BIOMES } from './biomes.js';
 import { rgbOf, bake, box, mat } from './geo.js';
 import { hash2, vnoise1 } from './noise.js';
 
+// edge-line paint: white, or orange where white would vanish into the surface
+const LINE_RGB = [0.85, 0.85, 0.82], LINE_RGB_SNOW = [1, 0.42, 0.1];
+const SNOWY = { snow: 1, ice: 1 };
+
 const LOOSE = { gravel: 1, dirt: 1, sand: 1, snow: 1, mud: 1, ash: 1, grass: 1, ice: 0.4 };
 
 export function buildRoad(W, q, group, disposables) {
@@ -92,11 +96,13 @@ export function buildRoad(W, q, group, disposables) {
   }
   disposables.push(geo);
 
-  // decals: tarmac edge lines + dashed centre line
-  const dp = [], di = [];
+  // decals: edge lines on every surface (so the road reads in ash, fog and snow) + tarmac centre dashes
+  const dp = [], dc = [], di = [];
   let dn = 0;
+  let rgb = LINE_RGB;
   const quad = (x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3) => {
     dp.push(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3);
+    for (let k = 0; k < 4; k++) dc.push(rgb[0], rgb[1], rgb[2]);
     di.push(dn, dn + 1, dn + 2, dn, dn + 2, dn + 3);
     dn += 4;
   };
@@ -106,12 +112,14 @@ export function buildRoad(W, q, group, disposables) {
   };
   for (let i = 0; i < N - 1; i++) {
     const sn = W.surfNames[W.SURF[i]], sn2 = W.surfNames[W.SURF[i + 1]];
-    if ((sn !== 'tarmac' && sn !== 'wet') || (sn2 !== 'tarmac' && sn2 !== 'wet')) continue;
+    const paved = (sn === 'tarmac' || sn === 'wet') && (sn2 === 'tarmac' || sn2 === 'wet');
+    rgb = SNOWY[sn] ? LINE_RGB_SNOW : LINE_RGB;
+    const ew = paved ? 0.07 : 0.1;
     for (const sd of [-1, 1]) {
-      const a = line(i, sd * (HW[i] - 0.3), 0.07), b = line(i + 1, sd * (HW[i + 1] - 0.3), 0.07);
+      const a = line(i, sd * (HW[i] - 0.3), ew), b = line(i + 1, sd * (HW[i + 1] - 0.3), ew);
       quad(a[0], a[1], a[2], a[3], a[4], a[5], b[3], b[4], b[5], b[0], b[1], b[2]);
     }
-    if ((i % 5) < 2) {
+    if (paved && (i % 5) < 2) {
       const a = line(i, 0, 0.09), b = line(i + 1, 0, 0.09);
       quad(a[0], a[1], a[2], a[3], a[4], a[5], b[3], b[4], b[5], b[0], b[1], b[2]);
     }
@@ -119,10 +127,11 @@ export function buildRoad(W, q, group, disposables) {
   if (dn > 0) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(dp), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(dc), 3));
     g.setIndex(dn > 65000 ? new THREE.BufferAttribute(new Uint32Array(di), 1) : new THREE.BufferAttribute(new Uint16Array(di), 1));
     g.computeVertexNormals();
     // vertices are wound the same as the ribbon (up-facing)
-    const dm = new THREE.MeshLambertMaterial({ color: 0xd9d9d2, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    const dm = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
     const mesh = new THREE.Mesh(g, dm);
     mesh.receiveShadow = true;
     group.add(mesh);
