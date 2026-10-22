@@ -1,4 +1,4 @@
-// vehicle.js - rigid-body rally car: suspension, tyres, drivetrain, collisions, damage + low-poly mesh.
+// vehicle.js - rigid-body rally car: suspension, tyres, drivetrain, collisions + low-poly mesh.
 //
 // Frame: car forward = -Z, right = +X, up = +Y. Steering/curvature + = right.
 // Position is the centre of mass. Everything per-step is allocation free.
@@ -97,7 +97,7 @@ const BODY_K = 90000;
 const BODY_C = 8000;
 const BODY_MU = 0.65;
 const BODY_TANG = 5000;
-// local points: x, y, z, isRoof(1 = counts for damage)
+// local points: x, y, z, isRoof(1 = upper body point, triggers impact sounds)
 const BODY_PTS = [
   [-0.88, -0.30, -2.0, 0], [0.88, -0.30, -2.0, 0], [-0.88, -0.30, 2.0, 0], [0.88, -0.30, 2.0, 0],
   [-0.88, 0.30, -2.0, 1], [0.88, 0.30, -2.0, 1], [-0.88, 0.30, 2.0, 1], [0.88, 0.30, 2.0, 1],
@@ -109,9 +109,6 @@ const CIRCLE_Z = [-1.3, 0, 1.3];
 const CIRCLE_R = 0.95;
 const RESTITUTION = 0.2;
 const COLL_FRICTION = 0.3;
-const DAMAGE_START = 3;                // m/s
-const DAMAGE_K = 0.022;
-const KIND_DAMAGE = { tree: 1, rock: 1.2, wall: 1, house: 1, barrier: 0.7, post: 0.5 };
 
 // --- airborne
 const AIR_PITCH_GAIN = 0.9;
@@ -176,7 +173,6 @@ export class Vehicle {
     this.maxRpm = REDLINE;
     this.gear = 1;
     this.throttle = 0;
-    this.damage = 0;
     this.airborne = false;
     this.upsideDown = false;
     this.onImpact = null;
@@ -218,7 +214,6 @@ export class Vehicle {
     this._lastGoodQ = new THREE.Quaternion();
     this._nanLogged = false;
     this._prevVel = new V3();
-    this._pullSign = Math.random() < 0.5 ? -1 : 1;
 
     this._buildMesh(o);
     if (scene) scene.add(this.mesh);
@@ -233,8 +228,8 @@ export class Vehicle {
     if (!this.manual && this.gear === 0) this.gear = 1;
   }
 
-  /** Place the car on the ground at `pos` facing `dir` (zero velocity). Damage is healed unless keepDamage. */
-  reset(pos, dir, keepDamage = false) {
+  /** Place the car on the ground at `pos` facing `dir` (zero velocity). */
+  reset(pos, dir) {
     this._pendPos.copy(pos);
     this._pendDir.set(dir.x, 0, dir.z);
     if (this._pendDir.lengthSq() < 1e-8) this._pendDir.set(0, 0, -1);
@@ -253,7 +248,6 @@ export class Vehicle {
     this.airborne = false;
     this.upsideDown = false;
     this.bodyContact = false;
-    if (!keepDamage) this.damage = 0;
     this._shiftTimer = 0; this._shiftCool = 0; this._revTimer = 0; this._limiter = false;
     this._wheelRpm = 0; this._lock = 0; this._airTime = 0; this._flipTimer = 0; this._sideTimer = 0;
     this._collCool = 0; this._groundCool = 0;
@@ -268,7 +262,6 @@ export class Vehicle {
     this._lastGoodPos.copy(this.position);
     this._lastGoodQ.copy(this.quaternion);
     this._prevVel.set(0, 0, 0);
-    this._visDamage = -1;
   }
 
   setLights(on) {
@@ -334,7 +327,6 @@ export class Vehicle {
       const beta = Math.atan2(vLat, Math.max(absV, 1)) * (vF >= 0 ? 1 : -1);
       delta += clamp(beta, -0.6, 0.6) * DRIFT_ASSIST * (1 - hb * 0.5);
     }
-    if (this.damage > 0.4) delta += this._pullSign * (this.damage - 0.4) * 0.05 * Math.min(1, absV / 10);
     delta = clamp(delta, -STEER_MAX, STEER_MAX);
     this.steerAngle = delta;
     {
@@ -699,8 +691,8 @@ export class Vehicle {
     if (rpm > REDLINE + 600) rpm = REDLINE + 600;
     this.rpm = rpm;
 
-    // rev limiter (damage lowers the ceiling a little)
-    const ceiling = REDLINE - 900 * clamp((this.damage - 0.5) / 0.5, 0, 1);
+    // rev limiter
+    const ceiling = REDLINE;
     this._ceiling = ceiling;
     if (rpm >= ceiling) this._limiter = true; else if (rpm < ceiling - 250) this._limiter = false;
 
@@ -709,14 +701,10 @@ export class Vehicle {
     this._lock = lock;
     this._reflect = ENGINE_INERTIA * ratio * ratio * 0.25;
 
-    // damage derates power
-    const d = this.damage;
-    const powerF = 1 - 0.3 * clamp((d - 0.4) / 0.4, 0, 1) - 0.3 * clamp((d - 0.8) / 0.2, 0, 1);
-
     let thrEff = (this._limiter || shifting || ratio === 0) ? 0 : drive;
     this.throttle = thrEff;
 
-    let Te = thrEff * TORQUE_PEAK * torqueCurve(rpm) * powerF;
+    let Te = thrEff * TORQUE_PEAK * torqueCurve(rpm);
     if (!shifting && ratio !== 0) {
       const eb = (ENGINE_BRAKE0 + ENGINE_BRAKE1 * rpm) * lock;
       Te -= (1 - thrEff) * eb * (this._limiter ? 1.5 : 1);
@@ -786,9 +774,7 @@ export class Vehicle {
       this._addF(fx, fy, fz, rx, ry, rz);
       if (P[3] === 1 && vn < -5 && this._groundCool <= 0) {
         this._groundCool = 0.4;
-        const sp = -vn;
-        this.damage = Math.min(1, this.damage + 0.012 * (sp - 4));
-        if (this.onImpact) this.onImpact(sp, 'ground');
+        if (this.onImpact) this.onImpact(-vn, 'ground');
       }
     }
   }
@@ -840,10 +826,6 @@ export class Vehicle {
         w.y += rxt * jt / I_YAW;
 
         const impact = -vn;
-        if (impact > DAMAGE_START) {
-          const kd = KIND_DAMAGE[c.kind] !== undefined ? KIND_DAMAGE[c.kind] : 1;
-          this.damage = Math.min(1, this.damage + (impact - DAMAGE_START) * DAMAGE_K * kd);
-        }
         if (impact > 1.5 && this._collCool <= 0) {
           this._collCool = 0.25;
           if (this.onImpact) this.onImpact(impact, c.kind);
@@ -871,21 +853,6 @@ export class Vehicle {
         v.spin.rotation.x = -(W.spin % (Math.PI * 2));
       }
     }
-    // damage visuals (cheap)
-    const d = this.damage;
-    if (this._visDamage !== d && this._bodyMat) {
-      this._visDamage = d;
-      this._bodyMat.color.copy(this._baseColor).lerp(this._dmgColor, Math.min(0.75, d * 0.9));
-      const b = this._bumper;
-      if (b) {
-        const loose = clamp((d - 0.25) / 0.5, 0, 1);
-        b.rotation.x = loose * 0.35;
-        b.position.y = this._bumperY - loose * 0.07;
-        b.position.z = this._bumperZ - loose * 0.04;
-        b.rotation.z = loose * 0.12 * this._pullSign;
-      }
-      if (this._hood) this._hood.visible = d < 0.6;
-    }
     // brake lights
     if (this._lights && !this._lights.on && this._lights.tailMat) {
       this._lights.tailMat.emissiveIntensity = 0.5;
@@ -911,9 +878,6 @@ export class Vehicle {
     const tailMat = mk(0x801010, { emissive: new THREE.Color(0xff1010), emissiveIntensity: 0.5 });
     const rubberMat = mk(0x151517, { roughness: 0.95, metalness: 0 });
     const rimMat = mk(0xc9ccd1, { roughness: 0.4, metalness: 0.7 });
-    this._bodyMat = bodyMat;
-    this._baseColor = baseColor.clone();
-    this._dmgColor = new THREE.Color(0x3b2f2a);
 
     const mats = { body: new MeshBuilder(), livery: new MeshBuilder(), glass: new MeshBuilder(), dark: new MeshBuilder(),
       white: new MeshBuilder(), head: new MeshBuilder(), pod: new MeshBuilder(), tail: new MeshBuilder() };
@@ -971,15 +935,12 @@ export class Vehicle {
     addMesh(B.pod, podMat, 'pod');
     addMesh(B.tail, tailMat, 'taillights');
 
-    // loose front bumper / splitter (moves with damage)
+    // front bumper / splitter
     const bGeo = new THREE.BoxGeometry(1.72, 0.14, 0.2);
     const bumper = new THREE.Mesh(bGeo, darkMat);
-    this._bumperY = -0.2; this._bumperZ = -2.06;
-    bumper.position.set(0, this._bumperY, this._bumperZ);
+    bumper.position.set(0, -0.2, -2.06);
     bumper.castShadow = cast;
     this.mesh.add(bumper);
-    this._bumper = bumper;
-    this._hood = null;
 
     // wheels
     this._wheelViz = [];

@@ -19,10 +19,6 @@
 .hud-prog-splits i { position: absolute; top: -3px; width: 3px; height: 14px; background: #fff; margin-left: -1px; box-shadow: 0 0 2px #000; }
 .hud-prog-car { position: absolute; top: -5px; left: 0; width: 14px; height: 18px; margin-left: -7px; background: #ff2d2d; border: 2px solid #fff; border-radius: 4px; box-shadow: 0 0 4px #000; box-sizing: border-box; }
 .hud-prog-labels { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 2px; opacity: .8; }
-.hud-damage { display: flex; align-items: center; gap: 8px; background: var(--hud-panel); padding: 4px 12px; width: fit-content; border-left: 4px solid var(--hud-accent); }
-.hud-car-ico { width: 20px; height: 35px; }
-.hud-car-body { fill: #3ddc6a; transition: fill .3s; }
-.hud-dmg-pct { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
 
 /* ---------- top centre ---------- */
 .hud-tc { top: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }

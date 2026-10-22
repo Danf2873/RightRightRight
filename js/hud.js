@@ -143,8 +143,6 @@ export class HUD {
 <div class="hud-tl">
   <div class="hud-progress"><div class="hud-prog-track"><div class="hud-prog-fill"></div><div class="hud-prog-splits"></div><div class="hud-prog-car"></div></div>
     <div class="hud-prog-labels"><span>START</span><span>FINISH</span></div></div>
-  <div class="hud-damage"><svg viewBox="0 0 40 70" class="hud-car-ico"><path class="hud-car-body" d="M12 6 Q20 0 28 6 L31 18 L33 22 L33 52 L30 64 Q20 70 10 64 L7 52 L7 22 L9 18 Z" stroke="#000" stroke-width="2.5"/>
-    <path d="M12 20 H28 L30 30 H10 Z M11 48 H29 L28 56 H12 Z" fill="#000" opacity=".55"/></svg><span class="hud-dmg-pct">0%</span></div>
 </div>
 <div class="hud-tc">
   <div class="hud-timer"><span class="hud-time">00:00.00</span><span class="hud-pen"></span></div>
@@ -173,7 +171,6 @@ export class HUD {
     const q = (s) => r.querySelector(s);
     this.el = {
       progFill: q('.hud-prog-fill'), progSplits: q('.hud-prog-splits'), progCar: q('.hud-prog-car'),
-      carBody: q('.hud-car-body'), dmgPct: q('.hud-dmg-pct'),
       time: q('.hud-time'), pen: q('.hud-pen'), split: q('.hud-split'),
       map: q('.hud-map'),
       tachFill: q('.hud-tach-fill'), ticks: q('.hud-tach-ticks'), shift: q('.hud-shiftlight'), gear: q('.hud-gear'),
@@ -286,13 +283,6 @@ export class HUD {
     const span = (st.finishDist - st.startDist) || 1;
     const pr = Math.round(Math.max(0, Math.min(1, (st.dist - st.startDist) / span)) * 1000);
     if (pr !== L.pr) { L.pr = pr; const p = (pr / 10) + '%'; el.progCar.style.left = p; el.progFill.style.width = p; }
-    // damage
-    const dm = Math.round(Math.max(0, Math.min(1, st.damage || 0)) * 100);
-    if (dm !== L.dm) {
-      L.dm = dm;
-      el.carBody.setAttribute('fill', `hsl(${Math.round(120 * (1 - dm / 100))},85%,50%)`);
-      el.dmgPct.textContent = dm + '%';
-    }
     // wrong way
     const ww = !!st.wrongWay;
     if (ww !== L.ww) { L.ww = ww; el.wrong.classList.toggle('hud-on', ww); }
