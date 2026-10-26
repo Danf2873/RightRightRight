@@ -8,6 +8,8 @@ import { newFrame } from './frame.js';
 import { clamp } from './noise.js';
 
 const CH = 256;
+const TREE_KINDS = new Set(['conifer', 'snowconifer', 'pine', 'deciduous', 'palm', 'cypress', 'dead']);
+const ROCK_KINDS = new Set(['rock', 'lavarock']);
 const SHADOW_KINDS = new Set(['conifer', 'snowconifer', 'pine', 'deciduous', 'palm', 'cypress', 'dead', 'rock', 'house']);
 
 function cone(r, h, seg, open = true) { return new THREE.ConeGeometry(r, h, seg, 1, open); }
@@ -119,7 +121,8 @@ function makeGeometry(kind, color) {
 const SPECT_COLORS = [0xd03030, 0x2f6fd0, 0xf0c020, 0x30a050, 0xffffff, 0xe07020, 0x8030b0, 0x20b0c0, 0x303030];
 
 export function buildScenery(ctx) {
-  const { W, q, rng, group, disposables, addCollider, grid, loc } = ctx;
+  const { W, q, rng, group, disposables, grid, loc } = ctx;
+  const addCollider = (x, z, r, kind) => { if (!((kind === 'tree' || kind === 'rock') && refused)) ctx.addCollider(x, z, r, kind); };
   const Q = q.scenery;
   const F = newFrame();
   const geoCache = new Map();
@@ -135,7 +138,15 @@ export function buildScenery(ctx) {
     if (!g) { g = makeGeometry(kind, color); geoCache.set(key, g); disposables.push(g); }
     return key;
   }
+  // last tree/rock that inst() refused for sitting on the road; its collider is dropped too
+  let refused = false;
   function inst(kind, color, x, y, z, yaw, sx, sy, sz, tint) {
+    refused = false;
+    if (TREE_KINDS.has(kind) || ROCK_KINDS.has(kind)) {
+      // footprint: rocks are jittered unit icospheres, trees need their trunk clear
+      const r = ROCK_KINDS.has(kind) ? 1.25 * Math.max(sx, sz) : 0.4 * sx;
+      if (edgeDist(x, z, -1) + 0.5 - r < 0.4) { refused = true; return; }
+    }
     const key = geoFor(kind, color);
     const bk = key + '@' + Math.floor(x / CH) + ',' + Math.floor(z / CH);
     let b = buckets.get(bk);
@@ -150,14 +161,18 @@ export function buildScenery(ctx) {
     if (a !== a || b !== b) return false;
     return Math.abs(a - h) < maxD * 1.5 && Math.abs(b - h) < maxD * 1.5;
   }
-  /** distance from the road edge (E = hw+0.5) to nearest road at x,z; hint = sample index */
+  /** distance from the road edge (E = hw+0.5) to nearest road at x,z; hint = sample index or -1 */
   function edgeDist(x, z, hint) {
-    let i = loc.climb(x, z, hint), b = loc.best;
+    // the hint finds the stretch we placed beside; the terrain grid's nearest sample catches
+    // other stretches (hairpins, switchbacks) passing close by
+    let i = -1, b = Infinity;
+    if (hint >= 0) { i = loc.climb(x, z, hint); b = loc.loc.best; }
     const gx = Math.floor((x - grid.x0) * grid.inv), gz = Math.floor((z - grid.z0) * grid.inv);
     if (gx >= 0 && gz >= 0 && gx < grid.nx && gz < grid.nz) {
       const gi = grid.IDX[gz * grid.nx + gx];
-      if (gi >= 0) { const i2 = loc.climb(x, z, gi); if (loc.best < b) { i = i2; b = loc.best; } }
+      if (gi >= 0) { const i2 = loc.climb(x, z, gi); if (loc.loc.best < b) { i = i2; b = loc.loc.best; } }
     }
+    if (i < 0) return Infinity;
     loc.frame(x, z, i, F);
     return Math.abs(F.lat) - (F.hw + 0.5);
   }
