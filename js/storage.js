@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS = {
   units: 'kmh',
   gearbox: 'auto',
   camera: 0,
+  touch: 'auto', // on-screen controls: 'auto' (touch screens) | 'on' | 'off'
 };
 
 function read(key) {

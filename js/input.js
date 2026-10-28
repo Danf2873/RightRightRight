@@ -1,4 +1,4 @@
-// input.js — keyboard / gamepad / steering wheel input for Right Right Right.
+// input.js — keyboard / touch / gamepad / steering wheel input for Right Right Right.
 // Contract: docs/CONTRACTS.md (input.js). The InputState object returned by update() is REUSED
 // every frame (no allocation); copy values if you need to keep them.
 
@@ -228,6 +228,7 @@ export class Input {
     this._pending = {};
     for (const a of EDGES) this._pending[a] = false;
     this._kbActivity = false;
+    this._virt = Object.create(null); // on-screen touch buttons, by action
     this._codeMap = new Map();
     this._rebuildKeyMap();
     // smoothed keyboard values
@@ -287,6 +288,17 @@ export class Input {
 
   _clearKeys() { this._down = Object.create(null); }
 
+  /** Hold or release an action from an on-screen control; it behaves like that action's key. */
+  setVirtual(action, down) {
+    down = !!down;
+    if (!!this._virt[action] === down) return;
+    this._virt[action] = down;
+    if (down) {
+      this._kbActivity = true;
+      if (this._pending[action] !== undefined) this._pending[action] = true;
+    }
+  }
+
   _rebuildKeyMap() {
     this._codeMap.clear();
     const keys = this.settings.keys;
@@ -334,6 +346,7 @@ export class Input {
   }
 
   _anyDown(action) {
+    if (this._virt[action]) return true;
     const l = this.settings.keys[action];
     if (!l) return false;
     for (let i = 0; i < l.length; i++) if (this._down[l[i]]) return true;
