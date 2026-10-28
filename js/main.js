@@ -83,6 +83,7 @@ vehicle.onImpact = (strength) => {
   if (strength < 2) return;
   audio.impact(Math.min(1, strength / 20));
   input.rumble(Math.min(1, strength / 15), Math.min(1, strength / 10), 120 + strength * 15);
+  input.ffb.impact(strength);
   if (strength > 12) shakeCamera(Math.min(1, strength / 30));
 };
 
@@ -559,6 +560,7 @@ function frame(now) {
   } else if (game.paused || game.state === 'menu') {
     menuNav(inp);
   }
+  input.updateFfb(dt, inStage && !game.paused && game.track ? vehicle : null);
 
   if (game.track) {
     updateCamera(dt);

@@ -157,7 +157,8 @@ export class Vehicle {
   airborne                     // true if no wheel touching
   upsideDown                   // true if roof is pointing down for >1s
   wheels                       // [FL, FR, RL, RR] each { contact, surface, slipRatio, slipAngle,
-                               //   load, compression, water }
+                               //   load, compression, water, fy, slip }  (fy = tyre lateral force N,
+                               //   slip = combined slip, 1 = peak grip; read by force feedback)
   onImpact                     // assignable callback(strengthMetersPerSec, kind) — main uses it for
                                // penalties, audio, rumble
 }
@@ -170,6 +171,10 @@ export class Input {
   constructor(settings)        // settings = the `input` sub-object of global settings (mutable)
   update(dt, speedMs) -> InputState     // poll keyboard + gamepads, call once per frame
   rumble(strong, weak, ms)     // gamepad vibration if supported
+  updateFfb(dt, vehicle)       // drive wheel force feedback, once per frame after physics;
+                               // vehicle = null in menus / pause (gentle centring only)
+  ffb                          // ForceFeedback (ffb.js); ffb.impact(strength) on collisions
+  wheelPosition                // wheel rim position in units of the used lock (unclamped)
   renderSettings(container)    // builds the input settings UI (device, mapping, calibration,
                                // deadzone, sensitivity, steering linearity, wheel rotation) into
                                // `container`; writes into the settings object and calls
@@ -195,6 +200,13 @@ Wheel: any non-"standard" gamepad (or one whose id matches /wheel|g29|g920|g923|
 fanatec|csl|moza|simucube|logitech.*racing|thrustmaster/i) → mapping table with axis index,
 inversion and range per control (steer, throttle, brake, clutch-as-handbrake optional), buttons for
 shift/handbrake. Calibration screen lets the user press/turn each control to bind it.
+
+Force feedback (ffb.js): FfbModel turns front tyre forces into rim torque (self-aligning torque with
+pneumatic trail that collapses at the grip limit, caster jacking, parked scrub, damping, bump and
+split-grip kickback, surface texture, impact jolts, soft lock). Output goes over WebHID because the
+Gamepad API cannot drive wheel motors; supported: Logitech classic protocol (G25/G27/G29/G923 PS/
+DFGT/DFP). Settings live in settings.input.ffb. Forces are zeroed on blur / hidden tab / stalled
+frames so the wheel is never left pushing.
 
 ## hud.js  (owner: ui worker)
 
