@@ -145,6 +145,8 @@ function makeWheel(x, z, front) {
   return {
     // contract fields
     contact: false, surface: 'tarmac', slipRatio: 0, slipAngle: 0, load: 0, compression: 0, water: 0,
+    // read by force feedback: tyre lateral force (N, along wheel right), combined slip (1 = peak)
+    fy: 0, slip: 0,
     // internal
     x, y: MOUNT_Y, z, front, isRight: x > 0,
     omega: 0, spin: 0, ux: 0, uy: 0, c: 0, cdot: 0, steer: 0, onRoad: true,
@@ -253,7 +255,7 @@ export class Vehicle {
     this._collCool = 0; this._groundCool = 0;
     for (let i = 0; i < 4; i++) {
       const w = this.wheels[i];
-      w.omega = 0; w.ux = 0; w.uy = 0; w.contact = false; w.slipRatio = 0; w.slipAngle = 0;
+      w.omega = 0; w.ux = 0; w.uy = 0; w.contact = false; w.slipRatio = 0; w.slipAngle = 0; w.fy = 0; w.slip = 0;
       w.load = 0; w.compression = 0; w.water = 0; w.c = 0; w.steer = 0;
       w.cache = {};
     }
@@ -386,7 +388,7 @@ export class Vehicle {
     for (let i = 0; i < 4; i++) {
       const W = wh[i];
       if (!W.contact) {
-        W.load = 0; W.compression = 0; W.slipRatio = 0; W.slipAngle = 0;
+        W.load = 0; W.compression = 0; W.slipRatio = 0; W.slipAngle = 0; W.fy = 0; W.slip = 0;
         W.fxT = 0; W.kxImp = 0; W.ux = 0; W.uy = 0;
         continue;
       }
@@ -444,6 +446,8 @@ export class Vehicle {
       const fm = Math.sqrt(fx * fx + fy * fy);
       if (fm > lim && fm > 1e-6) { const k = lim / fm; fx *= k; fy *= k; }
       W.fxT = fx;
+      W.fy = fy;
+      W.slip = _tf.s;
       // implicit stiffness for wheel spin integration
       const kx0 = mu * F * S.CB / (S.kPeak * SIGMA_X);
       const ratio = Math.abs(fx) / (Math.abs(W.ux) + 1e-5);

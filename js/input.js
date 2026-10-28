@@ -2,6 +2,8 @@
 // Contract: docs/CONTRACTS.md (input.js). The InputState object returned by update() is REUSED
 // every frame (no allocation); copy values if you need to keep them.
 
+import { ForceFeedback, defaultFfbSettings } from './ffb.js';
+
 const WHEEL_RE = /wheel|g29|g920|g923|t300|t150|tmx|fanatec|csl|moza|simucube|logitech.*racing|thrustmaster/i;
 const EDGES = ['shiftUp', 'shiftDown', 'reset', 'restart', 'camera', 'pause', 'repeatNote', 'confirm', 'back'];
 const KEY_ACTIONS = ['left', 'right', 'throttle', 'brake', 'handbrake', ...EDGES];
@@ -55,6 +57,7 @@ export function defaultInputSettings() {
       // button indices, -1 = unbound
       buttons: { shiftUp: 4, shiftDown: 5, handbrake: -1, camera: 3, reset: 2, pause: 9, repeatNote: 8, confirm: 0, back: 1 },
     },
+    ffb: defaultFfbSettings(),
   };
 }
 
@@ -244,9 +247,18 @@ export class Input {
     this._capture = null;
     this._listeners = [];
     this._attach();
+    this.wheelPosition = 0; // rim position in units of the used lock, NOT clamped (soft lock)
+    this.ffb = new ForceFeedback(this.settings.ffb);
+    this.ffb.setRotation(this.settings.wheel.deviceRotation);
   }
 
   get activeDevice() { return this._active; }
+
+  /** Drive the wheel's force feedback; call once per frame after physics. vehicle = null off-stage. */
+  updateFfb(dt, vehicle) {
+    const active = this._active === 'wheel' && !!this._wh;
+    return this.ffb.update(dt, vehicle, this.wheelPosition, active, this._wh);
+  }
 
   _attach() {
     if (typeof window === 'undefined' || !window.addEventListener) return;
@@ -264,6 +276,7 @@ export class Input {
     }
     this._listeners.length = 0;
     this._stopUiTimer();
+    this.ffb.stop();
   }
 
   _resetPads() {
@@ -443,6 +456,7 @@ export class Input {
     const rawS = this._axisRaw(p, w.steer.axis);
     let n = signedValue(rawS, w.steer);
     n *= (w.deviceRotation || 900) / Math.max(30, w.rotation);
+    this.wheelPosition = n;
     const ad = Math.abs(n);
     n = ad <= w.deadzone ? 0 : Math.pow(clamp((ad - w.deadzone) / (1 - w.deadzone), 0, 1), Math.max(0.1, w.linearity)) * Math.sign(n);
     out[0] = n;
@@ -616,6 +630,7 @@ export class Input {
     const wBox = h(doc, 'fieldset', { class: 'inp-box' }, [h(doc, 'legend', {}, 'Steering wheel')]);
     slider(wBox, 'Wheel rotation used (deg)', S.wheel, 'rotation', 180, 1080, 10, f0);
     slider(wBox, "Wheel's full rotation (deg)", S.wheel, 'deviceRotation', 180, 1080, 10, f0);
+    wBox.lastChild.querySelector('input').addEventListener('input', () => this.ffb.setRotation(S.wheel.deviceRotation));
     slider(wBox, 'Steering linearity', S.wheel, 'linearity', 0.6, 2, 0.05, f2);
     const msg = h(doc, 'div', { class: 'inp-cal-msg' }, S.wheel.calibrated ? 'Calibrated.' : 'Using default profile. Calibrate for best results.');
     const bar = h(doc, 'div', { class: 'inp-cal-bar' });
@@ -628,6 +643,7 @@ export class Input {
     const binds = h(doc, 'div', { class: 'inp-binds' });
     wBox.appendChild(binds);
     root.appendChild(wBox);
+    const ffbTick = this.ffb.renderSettings(root, h, slider, () => this._changed());
 
     const showBinds = () => {
       const w = S.wheel;
@@ -678,6 +694,7 @@ export class Input {
       const pads = [];
       if (this._gp) pads.push('Gamepad: ' + this._gp.id);
       if (this._wh) pads.push('Wheel: ' + this._wh.id);
+      ffbTick();
       live.textContent = `Active: ${st.device} | steer ${st.steer.toFixed(2)} thr ${st.throttle.toFixed(2)} brk ${st.brake.toFixed(2)} hb ${st.handbrake.toFixed(2)} | ` +
         (pads.length ? pads.join(' ; ') : 'no gamepad/wheel detected (press a button on it)');
       if (ui.cal) {
